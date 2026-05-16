@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -47,52 +48,64 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             Ed25519OkHttpExampleTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Button({
-                        CoroutineScope(Dispatchers.Default).launch {
-                            val kp = generateEd25519Keys()
-                            val (pub, priv) = convertToPublicPrivateKey(kp)
-                            val cert = generateX509Certificate2(
-                                X500Name("CN=issuer"),
-                                X500Name("CN=subject"),
-                                kp
-                            )
-                            val srvcert = loadCertificate(applicationContext, R.raw.srvcert) ?: throw IllegalArgumentException("srvcert cannot be null")
+                Surface {
+                    Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+                        Button({
+                            CoroutineScope(Dispatchers.Default).launch {
+                                val kp = generateEd25519Keys()
+                                val (pub, priv) = convertToPublicPrivateKey(kp)
+                                val cert = generateX509Certificate2(
+                                    X500Name("CN=issuer"),
+                                    X500Name("CN=subject"),
+                                    kp
+                                )
+                                val srvcert = loadCertificate(applicationContext, R.raw.srvcert)
+                                    ?: throw IllegalArgumentException("srvcert cannot be null")
 
-                            val client = createMtlsClient(priv,cert, srvcert)
-                            val request = Request.Builder()
-                                .url("https://127.0.0.1:3000")
-                                .build()
+                                val client = createMtlsClient(priv, cert, srvcert)
+                                val request = Request.Builder()
+                                    .url("https://127.0.0.1:3005")
+                                    .build()
 
-                            val data = withContext(Dispatchers.IO) {
-                                suspendCancellableCoroutine { continuation ->
-                                    val call = client.newCall(request)
+                                val data = withContext(Dispatchers.IO) {
+                                    suspendCancellableCoroutine { continuation ->
+                                        val call = client.newCall(request)
 
-                                    continuation.invokeOnCancellation {
-                                        call.cancel()
-                                    }
-
-                                    call.enqueue(object : Callback {
-                                        override fun onFailure(call: Call, e: IOException) {
-                                            continuation.resumeWithException(e)
+                                        continuation.invokeOnCancellation {
+                                            call.cancel()
                                         }
 
-                                        override fun onResponse(call: Call, response: Response) {
-                                            response.use {
-                                                if (!response.isSuccessful) {
-                                                    continuation.resumeWithException(IOException("Unexpected code $response"))
-                                                } else {
-                                                    continuation.resume(response.body?.string() ?: "")
+                                        call.enqueue(object : Callback {
+                                            override fun onFailure(call: Call, e: IOException) {
+                                                continuation.resumeWithException(e)
+                                            }
+
+                                            override fun onResponse(
+                                                call: Call,
+                                                response: Response
+                                            ) {
+                                                response.use {
+                                                    if (!response.isSuccessful) {
+                                                        continuation.resumeWithException(
+                                                            IOException(
+                                                                "Unexpected code $response"
+                                                            )
+                                                        )
+                                                    } else {
+                                                        continuation.resume(
+                                                            response.body?.string() ?: ""
+                                                        )
+                                                    }
                                                 }
                                             }
-                                        }
-                                    })
+                                        })
+                                    }
                                 }
+                                println(data)
                             }
-                            println(data)
+                        }) {
+                            Text("kick off")
                         }
-                    }) {
-                        Text("kick off")
                     }
                 }
             }
