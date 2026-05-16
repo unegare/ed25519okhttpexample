@@ -5,6 +5,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
@@ -50,61 +51,74 @@ class MainActivity : ComponentActivity() {
             Ed25519OkHttpExampleTheme {
                 Surface {
                     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                        Button({
-                            CoroutineScope(Dispatchers.Default).launch {
-                                val kp = generateEd25519Keys()
-                                val (pub, priv) = convertToPublicPrivateKey(kp)
-                                val cert = generateX509Certificate2(
-                                    X500Name("CN=issuer"),
-                                    X500Name("CN=subject"),
-                                    kp
-                                )
-                                val srvcert = loadCertificate(applicationContext, R.raw.srvcert)
-                                    ?: throw IllegalArgumentException("srvcert cannot be null")
+                        Column {
+                            Button({
+                                CoroutineScope(Dispatchers.Default).launch {
+                                    val kp = generateEd25519Keys()
+                                    val (pub, priv) = convertToPublicPrivateKey(kp)
+                                    val cert = generateX509Certificate2(
+                                        X500Name("CN=issuer"),
+                                        X500Name("CN=subject"),
+                                        kp
+                                    )
+                                    val srvcert = loadCertificate(applicationContext, R.raw.srvcert)
+                                        ?: throw IllegalArgumentException("srvcert cannot be null")
 
-                                val client = createMtlsClient(priv, cert, srvcert)
-                                val request = Request.Builder()
-                                    .url("https://127.0.0.1:3005")
-                                    .build()
+                                    val client = createMtlsClient(priv, cert, srvcert)
+                                    val request = Request.Builder()
+                                        .url("https://127.0.0.1:3005")
+                                        .build()
 
-                                val data = withContext(Dispatchers.IO) {
-                                    suspendCancellableCoroutine { continuation ->
-                                        val call = client.newCall(request)
+                                    val data = withContext(Dispatchers.IO) {
+                                        suspendCancellableCoroutine { continuation ->
+                                            val call = client.newCall(request)
 
-                                        continuation.invokeOnCancellation {
-                                            call.cancel()
-                                        }
-
-                                        call.enqueue(object : Callback {
-                                            override fun onFailure(call: Call, e: IOException) {
-                                                continuation.resumeWithException(e)
+                                            continuation.invokeOnCancellation {
+                                                call.cancel()
                                             }
 
-                                            override fun onResponse(
-                                                call: Call,
-                                                response: Response
-                                            ) {
-                                                response.use {
-                                                    if (!response.isSuccessful) {
-                                                        continuation.resumeWithException(
-                                                            IOException(
-                                                                "Unexpected code $response"
+                                            call.enqueue(object : Callback {
+                                                override fun onFailure(call: Call, e: IOException) {
+                                                    continuation.resumeWithException(e)
+                                                }
+
+                                                override fun onResponse(
+                                                    call: Call,
+                                                    response: Response
+                                                ) {
+                                                    response.use {
+                                                        if (!response.isSuccessful) {
+                                                            continuation.resumeWithException(
+                                                                IOException(
+                                                                    "Unexpected code $response"
+                                                                )
                                                             )
-                                                        )
-                                                    } else {
-                                                        continuation.resume(
-                                                            response.body?.string() ?: ""
-                                                        )
+                                                        } else {
+                                                            continuation.resume(
+                                                                response.body?.string() ?: ""
+                                                            )
+                                                        }
                                                     }
                                                 }
-                                            }
-                                        })
+                                            })
+                                        }
                                     }
+                                    println(data)
                                 }
-                                println(data)
+                            }) {
+                                Text("kick off")
                             }
-                        }) {
-                            Text("kick off")
+                            Button({
+                                val kp = generateEd25519Keys()
+                                val (pub, priv) = convertToPublicPrivateKey(kp)
+                                val data = ByteArray(200, { it.toByte() })
+                                val signature = signWithEd25519(priv, data)
+                                println("signature ed25519: ${signature}")
+                                val verdict = verifyEd25519Signature(pub, data, signature)
+                                println("verdict: ${verdict}")
+                            }) {
+                                Text("sign")
+                            }
                         }
                     }
                 }

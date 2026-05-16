@@ -12,6 +12,7 @@ import org.bouncycastle.crypto.generators.Ed25519KeyPairGenerator
 import org.bouncycastle.crypto.params.Ed25519KeyGenerationParameters
 import org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters
 import org.bouncycastle.crypto.params.Ed25519PublicKeyParameters
+import org.bouncycastle.crypto.signers.Ed25519Signer
 import org.bouncycastle.crypto.util.PrivateKeyInfoFactory
 import org.bouncycastle.operator.ContentSigner
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder
@@ -20,6 +21,7 @@ import java.security.KeyFactory
 import java.security.PrivateKey
 import java.security.PublicKey
 import java.security.SecureRandom
+import java.security.Signature
 import java.security.cert.X509Certificate
 import java.security.spec.PKCS8EncodedKeySpec
 import java.security.spec.X509EncodedKeySpec
@@ -82,4 +84,24 @@ fun generateX509Certificate2(issuer: X500Name, subject: X500Name, kp: Asymmetric
         .setProvider("BC")
         .getCertificate(certHolder)
     return x509Certificate
+}
+
+fun signWithEd25519(privateKey: PrivateKey, data: ByteArray): ByteArray {
+    return Signature.getInstance("Ed25519", "BC").run {
+        initSign(privateKey)
+        update(data)
+        sign()
+    }
+}
+
+fun verifyEd25519Signature(publicKey: PublicKey, originalData: ByteArray, signatureBytes: ByteArray): Boolean {
+    return try {
+        Signature.getInstance("Ed25519", "BC").run{
+            initVerify(publicKey)
+            update(originalData)
+            verify(signatureBytes)
+        }
+    } catch (e: Exception) {
+        false
+    }
 }
