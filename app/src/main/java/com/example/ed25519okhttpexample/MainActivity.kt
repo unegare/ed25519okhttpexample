@@ -31,6 +31,7 @@ import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.bouncycastle.jsse.provider.BouncyCastleJsseProvider
 import org.bouncycastle.openssl.PEMParser
+import org.bouncycastle.tls.crypto.impl.jcajce.JcaTlsCryptoProvider
 import java.io.IOException
 import java.io.InputStream
 import java.io.InputStreamReader
@@ -43,9 +44,19 @@ import kotlin.coroutines.resumeWithException
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        Security.removeProvider("BC")
-        Security.addProvider(BouncyCastleProvider())
-        Security.addProvider(BouncyCastleJsseProvider())
+//        Security.removeProvider("BC")
+//        Security.addProvider(BouncyCastleProvider())
+//        Security.addProvider(BouncyCastleJsseProvider())
+        val bcProvider = BouncyCastleProvider()
+        Security.removeProvider(BouncyCastleProvider.PROVIDER_NAME)
+        Security.removeProvider(BouncyCastleJsseProvider.PROVIDER_NAME)
+        Security.addProvider(bcProvider)
+        Security.addProvider(
+            BouncyCastleJsseProvider(
+                false,
+                JcaTlsCryptoProvider().setProvider(bcProvider)
+            )
+        )
         enableEdgeToEdge()
         setContent {
             Ed25519OkHttpExampleTheme {
@@ -66,7 +77,7 @@ class MainActivity : ComponentActivity() {
 
                                     val client = createMtlsClient(priv, cert, srvcert)
                                     val request = Request.Builder()
-                                        .url("https://127.0.0.1:3005")
+                                        .url("https://${BASE_SRV_URL}")
                                         .build()
 
                                     val data = withContext(Dispatchers.IO) {
